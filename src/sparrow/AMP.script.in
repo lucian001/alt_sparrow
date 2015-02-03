@@ -1,0 +1,22 @@
+[DEV5XS1.Board.HPS.OnChipRAM]l @0x0 -bin u-boot-spl-socfpga_vt.bin
+
+# Sparrow
+[DEV5XS1.Board.DDR_DRAM]l @__SPARROW_LOCATION__ -bin sparrow 
+
+# Address of u-boot = DRAM's mapped address + 128Mb
+[DEV5XS1.Board.DDR_DRAM]l @0x08000000 -bin u-boot-socfpga_vt.img
+
+#Linux in the usual place
+[DEV5XS1.Board.DDR_DRAM]l @0x7fc0 -bin uImage
+
+# Address of DTB = DRAM's mapped address + 100
+[DEV5XS1.Board.DDR_DRAM]l @0x100 -bin socfpga_vt.dtb
+
+# Load uCosII
+[DEV5XS1.Board.DDR_DRAM]l @__UCOS2_LOCATION__ ucosii.bin
+
+# Set CPU0 to Reset vector
+[DEV5XS1.Board.HPS.CortexA9_MPCore.cortex_a9_axi_0]r pc=0xFFFF0000
+
+g
+

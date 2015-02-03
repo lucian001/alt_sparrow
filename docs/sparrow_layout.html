@@ -1,0 +1,209 @@
+<DOCTYPE html>
+<HTML>
+<HEAD>
+	<TITLE>Sparrow Layout Script</TITLE>
+	<LINK REL="stylesheet" Type="text/css" HREF="sparrow.css" />
+</HEAD>
+<BODY BGCOLOR="#cdb79e">
+        <LINK REL="stylesheet" Type="text/css" HREF="sparrow.css" />
+        <CENTER><IMG SRC="Sparrow.png" /></CENTER><BR><BR>
+
+<DIV CLASS="container">
+        <CENTER><P><B>The Sparrow Layout Script helps the developer define the system memory layout and allocation of system peripherals and generates C code that provides the important values relating to that layout. It will help assist the user by adding additional memory regions that are required such as stack space</B></P></CENTER>
+
+<H1>The Sparrow Layout File Format</H1>
+	<P>The Sparrow Layout File is a developer provided file that defines how he would like to divide his system. It is written in python and consists of multiple lines that can define Contexts or Memory Regions, or can set various attributes of the system. The following are the functions that may be called
+	<H2>Constants</H2>
+	    <H4>Memory Sizes</H4>
+		<UL>
+		<LI><B>kb</B> kilobyte (1024)</LI>
+		<LI><B>page</B> pagesize (4096)</LI>
+		<LI><B>Mb</B> Megabyte (1024*1024)</LI>
+		<LI><B>Gb</B> Gigabyte (1024*1024*1024)</LI>
+		</UL>
+		<H4>Samples of using these contstants:</H4>
+		<P>	h = 32*Mb # 32 Megs<BR>
+			i = 4*page # 4x4k pages
+	<H2>Functions</H2>
+		<H4>setDevice(devicename)</H4>
+		<P>This function tells Sparrow which device this project is using. Calling this function will cause Sparrow to import the variables associated with that device. Valid values at the time of this writing are "cyclone5" or "arria5"
+		<H4>setPhysicalMemory(Size)</H4>
+		<P>This function tells sparrow how much memory is available on the board. This is required by Sparrow so that it can insure that it does not allocate memory that does not exist
+	<H2>Classes</H2>
+		<H3>Context(Name, Secure, CreateMap, cpuNum=None)</H3>
+		<P>Contexts are used for assigning resources to. The context can can multiple memory regions or peripheral assigned to it. It can defined as running in Trustzone Secure or Nonsecure. If a context is marked as being mapped then it will have a seperate virt-phys mapping created.
+			<H4>Initialization Parameters</H4>
+			<UL>
+			<LI><B>Name</B> When generating code for this context the script will use this name in each of the variables or functions</LI>
+			<LI><B>Secure</B> This boolean value declares if this context is running in trustzone secure or nonsecure mode</LI>
+			<LI><B>CreateMap</B> This boolean value declares if a MMU map should be created for this context. This will create an array named *name*_regions which declares each piece of the map as well as the memory attributes and a function named Map_*name* which will fill memory with the TTB tables and set the MMU to use them.
+			<LI><B>cpuNum</B> By setting the cpuNum (optional) you are telling Sparrow that this context is going to be used on the given cpu number (0 or 1). When Sparrow configures the GIC it will direct Interrupts to one or the other CPUs based on which contexts will be running on those CPUs
+			</UL>
+			<H4>Public Member Functions</H4>
+			<P> These functions may be called for a given context
+			<UL>
+			<LI><B>setMapped(b_mapped)</B> This gives the user an opportunity to override the value of the "CreateMap" paramter that was passed in during initialization. This is useful for predefined Contexts (such as the Sparrow context)</LI>
+			<LI><B>setCPU(cpuNum)</B> This gives the user an opportunity to override the value of the "cpuNum" paramter that was passed in during initialization. This is useful for predefined Contexts (such as the Sparrow context)</LI>
+			<LI><B>addComponent(device)</B> Adds a device to the context. This may be a predefined device type, or you may create a new component using the Component class below. This is useful if you just want to assign a block of interrupts to a context. The list of available for components for cyclone5 is defined below</LI>
+			</UL>
+		<H3>MemoryRegion(Name, Size=None, MapTo=[], Address=None, LoadFiles=[],
+                        MemPoolFor=None, StackFor=None, MemFor=None, TZStackFor=None)</H3>
+		<P> This defines a region of memory that can be assigned to one or more contexts
+			<H4>Intialization Paramters</H4>
+			<UL>
+			<LI><B>Name</B> When generating code for this Memory Region Sparrow will use this name in the constants</LI>
+			<LI><B>Size</B> How Large this memory region is in bytes (You can use *kb or *Mb). This is an optional paramter and if left blank Sparrow will attempt to allocate as much memory as possible for this context</LI>
+			<LI><B>MapTo</B> This is a list of Maps (see below) that indicate which contexts this should be mapped to and where</LI>
+			<LI><B>Address</B> This allows the user to specify where in Physical memory this Memory region exists. If left blank Sparrow will allocate this from memory that isn't otherwise allocated</LI>
+			<LI><B>LoadFiles</B> This is a list of Files (see below) that will be loaded by uboot for this context. This is used by Sparrow to generate uboot bootscripts which will load a solution into memory</LI>
+			<LI><B>MemPoolFor</B> If this value is set to a context then this tells Sparrow to use this memory region to store the MMU TTB tables for mapping a particular context. Every context that is mapped requires a memory region that will store the MMU TTB tables and if no pool is allocated by the user then Sparrow will create one automatically</LI>
+			<LI><B>StackFor</B> Each CPU that is being used requires a stack for it's execution. By specifying the cpu ID (0 or 1) here, you are indicating that this Memory Region is to be used as a stack for that CPU within Sparrow. This is ued when the CPU is being brought out of reset and when executing within Sparrow. If a Memory Region is not assigned by the user for a particular CPU then Sparrow will create one automatically. Note that this value must be an integer</LI>
+			<LI><B>MemFor</B></LI>
+			<LI><B>TZStackFor</B> When a CPU is put in Trustzone Nonsecure mode it can use the SMC (Secure Monitor Call) opcode to handle secure requests. These requests are used to perform functions that cannot be done in nonsecure mode, such as enabling or disabling the L2 cache, triggering interrupts that are marked secure, or running small programs in secure memory that is not accessable to the nonsecure operating system. These calls require their own stack which must be allocated in Sparrow. If a context is marked as Nonsecure and no Memory Region is assigned a TZStackFor for it, then Sparrow will automatically allocate one for the user. Note that this value must be an integer</LI>
+			</UL>
+		<H3>Map(Context, Address=None, Shared=False, NoCache=False, Device=False, AddrMatch=False)</H3>
+		<P>The Map class is used to define a virtual memory mapping between a memory region and a context. An array of Mappings is passed to the MemoryRegion class on initialization.
+			<H4>Intialization Paramters</H4>
+			<UL>
+			<LI><B>Context</B> This is the context that is the memory region is being mapped to</LI>
+			<LI><B>Address</B> This is the Virtual address that you wish to map this memory to. If unassigned then Sparrow will allocate an Address from an unused block of Virtual Memory for this context</LI>
+			<LI><B>Shared</B> This boolean value indicates if this memory is being shared and is used to set or clear the shared memory bit in the MMU tables</LI>
+			<LI><B>NoCache</B> This boolean value indicates the cachable and bufferable bit in the MMU tables</LI>
+			<LI><B>Device</B> This boolean value indicates the Device bit in the MMU tables</LI>
+			<LI><B>AddrMatch</B> This boolean tells Sparrow if you want to match the Virtual Memory address to the Physical Memory address in the Mapping. This can be important in certain instances- such as when you are mapping the code that you are currently executing code from</LI>
+			</UL>
+		<H3>Component(Name, Interrupts=[], SetNSString=None)</H3>
+		<P> This class defines a peripheral device in the system. It is mostly an internal Sparrow class, but can be used to assign a set of interrupts to be used by a component. For instance, <code>linux.addComponent(Component("Int7", [7]))</code> would assign interrupt number 7 to linux which would cause Sparrow to mark that interrupt as accessable to Nonsecure accessible
+			<H4>Intialization Paramters</H4>
+			<UL>
+			<LI><B>Name</B> This assigns a human-friendly name to this component</LI>
+			<LI><B>Interrupts</B> This is an optional array of the interrupt numbers assigned to this device</LI>
+			<LI><B>SetNSString</B> This optional paramter is the name of the constant used for assigning this component to Trustzone NonSecure mode. This is used by Sparrow when declaring components for use by users, but this value shouldn't be assigned by users when declaring their own components.</LI>
+			</UL>
+		<H3>File(LoadOffset, Filename, Name, ExecutableFor=None, ExecutableOffset=0)</H3>
+		<P> This class defines a file that needs to be loaded by uboot for the solution. It is only used as a paramter to the Memory Region initialization function. 
+			<H4>Intialization Paramters</H4>
+			<UL>
+			<LI><B>LoadOffset</B> This is the offset in the Memory Region where this file is to be loaded. This value is added to the physical address of where the memory region is allocated in order to calculate where the file is really loaded</LI>
+			<LI><B>Filename</B> The filename to be loaded</LI>
+			<LI><B>Name</B> This gives a variable name to be used in the scripts</LI>
+			<LI><B>ExecutableFor</B>If this file is an executable then this paramter is the context this file is and execuable for</LI>
+			<LI><B>ExecutableOffset</B> This value will be 0 for an application who's excution begins at the address that it is loaded. However, some applications use a uboot header and need 0x40 bytes as an offset. </LI>
+			</UL>
+	<H2>Predefined Contexts</H2>
+		<H4>System</H4>
+		<P>This is a special context that defines the whole system. It contains every region of memory and knows the physical address where they are located
+		<H4>sparrow</H4>
+		<P>This is the context for the sparrow program itself. This is required so that memory is set aside for the sparrow program itself as well as stack space for running sparrow
+		<H4>uboot</H4>
+		<P>This context is used to set aside memory for uboot. This is important to avoid the situation where uboot would be told to load a program into the memory where uboot is executing from.
+	<H2>Predefined Components</H2>
+		<P>This is a list of the Components defined if the user sets the device to cyclone5:
+		<UL>
+		<LI><B>privateInts</B> Psuedoname for interrupts 0-15</LI>
+		<LI><B>globalTimer</B></LI>
+		<LI><B>legacyFIQ</B> Pseudoname for interrupt 28</LI>
+		<LI><B>privateTimer</B></LI>
+		<LI><B>legacyNIRQ</B> Pseudoname for interrupt 31</LI>
+		<LI><B>cpu0_parityfail</B> Pseudoname for interrupts 33-47</LI>
+		<LI><B>cpu1_parityfail</B> Pseudoname for interrupts 48-63</LI>
+		<LI><B>scu_parityfail</B> Pseudoname for interrupts 64-66</LI>
+		<LI><B>l2_ecc</B></LI>
+		<LI><B>ddr_ecc_error</B> Pseudoname for interrupt 71</LI>
+		<LI><B>fpga</B></LI>
+		<LI><B>fpga_mngr</B></LI>
+		<LI><B>dma</B></LI>
+		<LI><B>usb0</B></LI>
+		<LI><B>usb1</B></LI>
+		<LI><B>can0</B></LI>
+		<LI><B>can1</B></LI>
+		<LI><B>sdmmc</B></LI>
+		<LI><B>nand</B></LI>
+		<LI><B>qspi</B></LI>
+		<LI><B>spi0_slave</B></LI>
+		<LI><B>spi1_slave</B></LI>
+		<LI><B>spi0_master</B></LI>
+		<LI><B>spi1_master</B></LI>
+		<LI><B>spis</B> spi0 and 1 slave and master</LI>
+		<LI><B>i2c0</B></LI>
+		<LI><B>i2c1</B></LI>
+		<LI><B>i2c2</B></LI>
+		<LI><B>i2c3</B></LI>
+		<LI><B>i2cs</B> All i2cs</LI>
+		<LI><B>emac0</B></LI>
+		<LI><B>emac1</B></LI>
+		<LI><B>uart0</B></LI>
+		<LI><B>uart1</B></LI>
+		<LI><B>gpio0</B></LI>
+		<LI><B>gpio1</B></LI>
+		<LI><B>gpio2</B></LI>
+		<LI><B>gpios</B> All gpios</LI>
+		<LI><B>sptimer0</B></LI>
+		<LI><B>sptimer1</B></LI>
+		<LI><B>osctimer0</B></LI>
+		<LI><B>osctimer1</B></LI>
+		<LI><B>timers</B> sptimer0, sptimer1, osctimer0, osctimer1</LI>
+		<LI><B>watchDog</B></LI>
+		<LI><B>watchdog0</B></LI>
+		<LI><B>watchdog1</B></LI>
+		<LI><B>watchDogs</B> Both watchdogs</LI>
+		<LI><B>clkmgr</B></LI>
+		<LI><B>mpuwakeup</B></LI>
+		<LI><B>CoreSight</B></LI>
+		<LI><B>OCR</B></LI>
+		<LI><B>acp</B></LI>
+		<LI><B>rom</B></LI>
+		<LI><B>sdram</B></LI>
+		<LI><B>dap</B></LI>
+		<LI><B>reset</B></LI>
+		<LI><B>sysmngr</B></LI>
+		<LI><B>scanmngr</B></LI>
+		<LI><B>stmslave</B></LI>
+		</UL>
+<H1>Using the Sparrow Script</H1>
+<P>The sparrow script can be used for generating C files, returning information about a mapping or creating boot scripts. To do any of these, it begins by performing the following steps:
+<UL>
+<LI>Parses the layout definition file</LI>
+<LI>Defines any additional memory regions that are required</LI>
+<LI>Checks for overlaping Memory Regions</LI>
+<LI>Assigns locations and sizes for Memory Regions that are not fixed</LI>
+<LI>Parses requests from the command line</LI>
+</UL>
+	<H2>Creating C Files with the Sparrow Script</H2>
+	<P>To create C files with the Sparrow scipt use the following command line syntax:<BR>
+	<code>python src/sparrow/Sparrow.py layout_script -H ouput_h_file -C output_c_file</code><BR>
+	<P>The h file created will contain the constants and arrays that define the layout of memory, interrupts, and devices. These variables can then be used in your code knowing that your code will use the most up-to-date values if the layout changes. The h file will also contain the function call declarations for the functions defined in the C file<BR>
+	<P>The c file will contain the functions for Mapping any context that was marked as mappable in the Layout file. Additionally, it will define the following functions: 
+	<UL>
+	<LI><B>SetupTZMemAccess</B> - Configure the SDRam controller to accept or deny memory accesses to various regions of memory based on how that memory was defined</LI>
+	<LI><B>SetupTZInterrupts</B> - Configure the GIC to route interrupts to CPU0 or 1 based on which devices are assigned to the contexts that are using those cores. Also, set the Trustzone permissions so that the interrupts that are Secure are inaccessible to Nonsecure contexts</LI>
+	<LI><B>SetupTZPeripherals</B> - Configure the peripherals so that they are accessible or inaccessible to nonsecure domains</LI>
+	</UL>
+	<H2>Retrieving values from the Sparrow Script</H2>
+	<P>The sparrow script can be used to return information about the memory map that was determined. This information includes memory locations, memory region sizes, interrupts assigned to a context, etc. This can be useful when debugging, or can be used in scripts or makefiles to pass paramters to ld or mkimage. This is done using the following syntax:<BR>
+	<code>python src/sparrow/Sparrow.py layout_script -var varname</code><BR>
+	<UL>
+	<LI>{blank} If varname is left blank then Sparrow will return the list of contexts allocated</LI>
+	<LI>{context_name} - This will return the list of variables available that relate to this context, including Memory region names</LI>
+	<LI>{context_name}.interrupts - This is the list of interrupts assigned to this context</LI>
+	<LI>{context_name}.Mapped - Returns True or False</LI>
+	<LI>{context_name}.cpuNum - Which CPU these interrupts should be mapped to</LI>
+	<LI>{context_name}.Secure - Returns True or False</LI>
+	<!-- LI>{context_name}.Components - List of Components assigned to this</LI -->
+	<LI>{context_name}.MemPool - The Memory Region that will store the TTB (If this context is Mapped)</LI>
+	<LI>{context_name}.Executable - The Memory Region where this context is executed from</LI>
+	<LI>{context_name}.{Memory_Region_Name} - The Map that connects this Memory Region Mapped to this context</LI>
+	<LI>{context_name}.{Memory_Region_Name}.Address - The virtual address where this MR will be mapped to</LI>
+	<LI>{context_name}.{Memory_Region_Name}.Size - The size of the MR</LI>
+	<LI>{context_name}.{Memory_Region_Name}.Shared - Boolean - is this memory shared?</LI>
+	<LI>{context_name}.{Memory_Region_Name}.NoCache - Boolean - is this memory non-cachable</LI>
+	<LI>{context_name}.{Memory_Region_Name}.Device - Boolean is this memory Device Memory</LI>
+	<LI>{context_name}.{Memory_Region_Name}.AddrMatch - Boolean - Is the virtual addr == physical addr</LI>
+	<LI>{context_name}.{Memory_Region_Name}.Region - The Memory Region that is being mapped</LI>
+	<LI>{context_name}.{Memory_Region_Name}.Region.Address - The Physical address of this MR</LI>
+	</UL>
+	<H2>Creating a boot script using the Sparrow Script</H2>
+	<P>To create a boot script use <code> python src/sparrow/Sparrow.py layout_script -t output_file</code>. If you have a file in the current directory named config.py you can specify the serverip, ethernet mac address and/or board ip address and this will by used by in the tftp section of the uboot script.<BR>
+	The uboot script will contain a function to load each of the required files from the mmc card. These functions are named mc*filename* where the filename is the value used in the layout script when initializing a File object. Additionally a function to loading the file via tftp name tf*filename*. There will be a function named <B>mmcload</B> which will load all of the required files from the mmc card and a function named <B>tfload</B> which will load all of these files via tftp. Finally, there is a function name <B>mmcboot</B> which will set up the environment and start Sparrow.
+</DIV>
+</HTML>

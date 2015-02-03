@@ -1,0 +1,7 @@
+trash
+bin
+gen
+mage.txt
+*.swp
+*.pyc
+*.pyo
