@@ -19,7 +19,7 @@ setPhysicalMemory(1*Gb)
 
 MemoryRegion(
 	Name = "Memory for Baremetal App",
-	Address = 0x0,
+	Address = 0x10000,
 	MapTo = [Map(sparrow, AddrMatch=True)],
 	LoadFiles = [File(0x0, "sparrow.bin" , "sparrow", sparrow, 0x40)],
 	StackFor = cpu0,

@@ -1,8 +1,10 @@
 SHELL := /bin/bash
 
 ifeq ($(VERBOSE),)
-SIL=@
+#SIL=@
 endif
+
+CROSS_COMPILE ?=arm-linux-gnueabihf-
 
 AS=$(CROSS_COMPILE)gcc
 CC=$(CROSS_COMPILE)gcc
@@ -40,7 +42,7 @@ CCFLAGS += -DALT_INT_PROVISION_VECTOR_SUPPORT=0
 LINUX_CFLAGS = -g -O0 -DLINUX 
 
 .PHONY: all
-all: baremetal linux_baremetal linux_uCos2 baremetal_dual uCos2_uCos2
+all: baremetal_dual
 #bin/sparrow mage.txt install
 
 objs =  $(BIN_DIR)/startup.o \
@@ -112,7 +114,8 @@ dumpLog: $(LINUX_BIN_DIR)/dumpLog
 
 CONFIG_FILE = $(PROJ_DIR)/layout.py
 $(BIN_DIR)/sparrow.txt: $(BIN_DIR)/sparrow.axf
-	$(SIL)$(OBJ_DUMP) -DS $< >$@
+	@echo "bypass  $(SIL)$(OBJ_DUMP) -DS $< >$@"
+#$(SIL)$(OBJ_DUMP) -DS $< >$@
 
 $(BIN_DIR)/sparrow.map: $(PROJ_DIR)/layout.py
 	$(SIL)$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) -p >$@
@@ -177,6 +180,8 @@ objs_baremetal = \
 	$(BIN_DIR)/main.o \
 	$(BIN_DIR)/baremetal_app.o \
 	$(BIN_DIR)/alt_clock_manager.o \
+	$(BIN_DIR)/alt_bridge_manager.o \
+	$(BIN_DIR)/alt_fpga_manager.o \
 	$(BIN_DIR)/alt_timers.o \
 	$(BIN_DIR)/alt_globaltmr.o \
 	$(BIN_DIR)/alt_watchdog.o
@@ -191,7 +196,8 @@ objs_baremetal_dual = $(objs_baremetal) \
 	$(BIN_DIR)/scu.o \
 	$(BIN_DIR)/scuS.o \
 	$(BIN_DIR)/reset.o \
-	$(BIN_DIR)/resetS.o 
+	$(BIN_DIR)/resetS.o \
+	$(BIN_DIR)/hwlib.o 
 
 .PHONY: baremetal_udal
 baremetal_dual:
@@ -200,78 +206,4 @@ baremetal_dual:
 bin/baremetal_dual/sparrow.axf: $(BIN_DIR) $(objs_baremetal_dual)
 	$(SIL)$(CC) $(LDFLAGS) -o $@ $(objs_baremetal_dual)  \
 		-Wl,-N,--build-id=none,-Ttext=`$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) -var 'sparrow.Executable.Start'` 
-
-#########################################	AMP Linux/Baremetal App
-
-$(LINUX_BIN_DIR):
-	$(SIL)$(MKDIR) $@
-
-.PHONY: ledset 
-ledset: $(LINUX_BIN_DIR)/ledset
-
-.PHONY: linux_baremetal
-linux_baremetal:
-	@make --no-print-directory PROJ=linux_baremetal VERBOSE=$(VERBOSE) projfiles dumpLogScript
-
-# baremetal app files
-objs_linux_baremetal = $(objs) \
-		$(BIN_DIR)/qcom.o \
-		$(BIN_DIR)/main.o \
-		$(BIN_DIR)/baremetal_app.o \
-		$(BIN_DIR)/alt_clock_manager.o \
-		$(BIN_DIR)/alt_timers.o \
-		$(BIN_DIR)/alt_globaltmr.o \
-		$(BIN_DIR)/alt_watchdog.o
-
-# baremetal side of qcome
-$(BIN_DIR)/qcom.o: $(QCOM_DIR)/qcom.c
-	$(SIL)$(CC) $(CCFLAGS) -o $@ $< \
-		-DPHYS_MEM_ADDR=`$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) \
-					-var 'sparrow.Shared_Comm_Channel.Address'` \
-		-DMEM_SIZE=`$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) \
-					-var 'sparrow.Shared_Comm_Channel.Size'`
-
-# Linux app to talk with baremetal
-$(LINUX_BIN_DIR)/qcom.o: $(QCOM_DIR)/qcom.c $(LINUX_BIN_DIR)
-	$(SIL)$(CC) -c $(LINUX_CFLAGS) -o $@ $<
-
-$(LINUX_BIN_DIR)/ledset.o: src/qcom/ledset.c $(LINUX_BIN_DIR)
-	$(SIL)$(CC) -c $(LINUX_CFLAGS) -o $@ $< -Isrc/linux_baremetal \
-                -DPHYS_MEM_ADDR=`$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) \
-                                        -var 'Linux.Shared_Comm_Channel.Address'` \
-                -DMEM_SIZE=`$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) \
-                                        -var 'Linux.Shared_Comm_Channel.Size'`
-
-$(LINUX_BIN_DIR)/ledset: $(LINUX_BIN_DIR)/qcom.o $(LINUX_BIN_DIR)/ledset.o
-	$(SIL)$(CC) $(CFLAGS) -o $@ $^
-
-bin/linux_baremetal/sparrow.axf: $(BIN_DIR) $(objs_linux_baremetal)
-	$(SIL)$(CC) $(LDFLAGS) -o $@ $(objs_linux_baremetal)  \
-		-Wl,-N,--build-id=none,-Ttext=`$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) -var 'sparrow.Executable.Start'` 
-
-#########################################	linux-uCos2
-
-.PHONY: linux_uCos2
-linux_uCos2:
-	@make --no-print-directory PROJ=linux_uCos2 VERBOSE=$(VERBOSE) projfiles dumpLogScript
-
-objs_linux_ucos2 = $(objs) \
-		$(BIN_DIR)/main.o
-
-bin/linux_uCos2/sparrow.axf: $(BIN_DIR) $(objs_linux_ucos2)
-	$(SIL)$(CC) $(LDFLAGS) -o $@ $(objs_linux_ucos2)  \
-		-Wl,-N,--build-id=none,-Ttext=`$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) -var 'sparrow.Executable.Start'` 
-
-#########################################       linux-uCos2
-
-.PHONY: uCos2_uCos2
-uCos2_uCos2:
-	@make --no-print-directory PROJ=uCos2_uCos2 VERBOSE=$(VERBOSE) projfiles
-
-objs_ucos2_ucos2 = $(objs) \
-	$(BIN_DIR)/main.o
-
-bin/uCos2_uCos2/sparrow.axf: $(BIN_DIR) $(objs_ucos2_ucos2)
-	$(SIL)$(CC) $(LDFLAGS) -o $@ $(objs_ucos2_ucos2)  \
-		-Wl,-N,--build-id=none,-Ttext=`$(PYTHON) $(PYSCRIPT) $(PROJSCRIPT) -var 'sparrow.Executable.Start'`
 
