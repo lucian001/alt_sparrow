@@ -44,8 +44,10 @@ int cpu0_main(void)
 
   alt_mmu_va_space_create(&tb, sparrow_regions, sizeof(sparrow_regions)/sizeof(sparrow_regions[0]), MemPoolAlloc, &pool);
 
+
+
   // This wakeup call should be done before the mmu is enabled because it requires writes not be cached
-  wakeup_CPU(1, cpu1_main);
+//  wakeup_CPU(1, cpu1_main);
 
   alt_mmu_DACR_set(g_domain_ap, 16);
   alt_mmu_TTBCR_set(true, false, 0);
@@ -54,13 +56,17 @@ int cpu0_main(void)
 
   __enable_neon();
 
+#if 1  
+	hwlib_main(0, 0);
+#endif
+
   while(1)
     __asm__( "wfi" );
 }
 
 void cpu1_main(void)
 {
-  printf("CPU1 Online");
+  printf("CPU1 Online \n");
 
   // Note: Although the cache is enabled, instructions and data will not be cached unless
   // they are in virtual memory with the pages marked as cachable. When the MMU is turned off
@@ -74,6 +80,11 @@ void cpu1_main(void)
   alt_mmu_enable();
   __enable_neon();
 
+#if 1
+	while(1);
+#else
+
   main();
+#endif  
 }
 

@@ -1,0 +1,15 @@
+stop
+loadfile "D:\__ALTERA\__PROJECT\SYNTEK\20150114_Sparrow_bm_dual\sparrow_bm_dual\bin\baremetal_dual\sparrow.axf"
+wait
+
+delete
+
+#tbreak socfpga_int_start
+tbreak cpu0_main
+tbreak cpu1_main
+tbreak main
+#tbreak hwlib_main
+
+hbreak alt_fpga_pio_button_int_callback
+
+continue

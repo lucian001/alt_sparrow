@@ -192,6 +192,7 @@ bin/baremetal/sparrow.axf: $(BIN_DIR) $(objs_baremetal)
 
 #########################################       Baremetal App
 
+
 objs_baremetal_dual = $(objs_baremetal) \
 	$(BIN_DIR)/scu.o \
 	$(BIN_DIR)/scuS.o \

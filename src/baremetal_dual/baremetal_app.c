@@ -36,6 +36,25 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include    "alt_mpu_registers.h"
 
 
+
+
+// Lucian
+int hwlib_main(int argc, char** argv);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #define SPTMR		0
 #define OSCTMR1		1
 #define OSCTMR0		2
@@ -384,8 +403,13 @@ void main_loop()
     }
 }
 
+
+
 void main(void)
 {
+	printf("main() \n");
+
+	
     // initialize ports necessary
     // set up interrupts for reading messages & sensing inputs from FPGA
     // set up timer to trigger @ 1 sec - use to toggle LED
@@ -402,6 +426,10 @@ void main(void)
     alt_amp_MPU1_osc1tmr1_setup();
     alt_amp_MPU1_sptmr0_setup();
 
+
+
     main_loop();
+    
+    
 }
 
